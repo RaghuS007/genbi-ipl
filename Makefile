@@ -1,8 +1,10 @@
-.PHONY: up down logs restart-python test etl etl-season lint
+.PHONY: up down logs restart-python build health test etl etl-season eval lint
 
 # Start all services
 up:
 	docker compose up --build -d
+	@echo "Gateway: http://localhost:8080"
+	@echo "Intelligence: http://localhost:8000"
 
 # Stop all services
 down:
@@ -16,6 +18,13 @@ logs:
 restart-python:
 	docker compose up --build -d intelligence
 
+build:
+	docker compose build
+
+health:
+	curl http://localhost:8000/health
+	curl http://localhost:8080/health
+
 # Run tests
 test:
 	docker compose exec intelligence pytest tests/ -v
@@ -26,7 +35,7 @@ etl:
 
 # Reload a specific season
 etl-season:
-	python etl/run_etl.py --season 
+	python etl/run_etl.py --season $(SEASON)
 
 # Run evaluation suite
 eval:

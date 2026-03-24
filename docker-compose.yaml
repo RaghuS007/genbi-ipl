@@ -1,1 +1,37 @@
+services:
+  intelligence:
+    build:
+      context: ./intelligence
+      dockerfile: Dockerfile
+    container_name: genbi-intelligence
+    env_file:
+      - .env
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data:ro
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: genbi-gateway
+    environment:
+      GATEWAY_PORT: "8080"
+      PYTHON_SERVICE_URL: "http://intelligence:8000"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./frontend/static:/app/static:ro
+    depends_on:
+      intelligence:
+        condition: service_healthy

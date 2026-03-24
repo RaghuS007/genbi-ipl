@@ -1,1 +1,262 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GenBI Phase 0</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1120;
+      --panel: #111827;
+      --panel-border: #1f2937;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0ea5e9;
+      --error: #f87171;
+      --success: #4ade80;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(56, 189, 248, 0.18), transparent 30%),
+        linear-gradient(180deg, #020617 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .page {
+      width: min(900px, calc(100% - 32px));
+      margin: 48px auto;
+    }
+
+    .panel {
+      background: rgba(17, 24, 39, 0.92);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 24px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 20px 60px rgba(2, 6, 23, 0.45);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    p {
+      margin: 0 0 20px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .query-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: start;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      background: #020617;
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+    }
+
+    button {
+      min-width: 140px;
+      padding: 14px 18px;
+      border: 0;
+      border-radius: 12px;
+      background: var(--accent);
+      color: #082f49;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    button:disabled {
+      opacity: 0.7;
+      cursor: wait;
+    }
+
+    .status {
+      min-height: 24px;
+      margin: 16px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .status.error {
+      color: var(--error);
+    }
+
+    .status.success {
+      color: var(--success);
+    }
+
+    .result {
+      margin-top: 24px;
+    }
+
+    pre {
+      margin: 0;
+      padding: 18px;
+      overflow: auto;
+      border-radius: 12px;
+      background: #020617;
+      border: 1px solid #1e293b;
+      color: #cbd5e1;
+      line-height: 1.5;
+      font-size: 0.95rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    @media (max-width: 700px) {
+      .page {
+        width: calc(100% - 20px);
+        margin: 20px auto;
+      }
+
+      .panel {
+        padding: 18px;
+      }
+
+      .query-row {
+        grid-template-columns: 1fr;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="panel">
+      <h1>GenBI Phase 0</h1>
+      <p>
+        Minimal browser-to-gateway-to-intelligence scaffold for IPL natural language analytics.
+        Submit a query to verify the full request flow is working.
+      </p>
+
+      <label for="queryInput">Ask a cricket query</label>
+      <div class="query-row">
+        <input
+          id="queryInput"
+          type="text"
+          maxlength="500"
+          placeholder="Example: Top 5 run scorers"
+          autocomplete="off"
+        >
+        <button id="submitButton" type="button">Submit Query</button>
+      </div>
+
+      <div id="statusMessage" class="status"></div>
+
+      <div class="result">
+        <pre id="resultOutput">Waiting for a query...</pre>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const queryInput = document.getElementById("queryInput");
+    const submitButton = document.getElementById("submitButton");
+    const statusMessage = document.getElementById("statusMessage");
+    const resultOutput = document.getElementById("resultOutput");
+
+    async function submitQuery() {
+      const query = queryInput.value.trim();
+
+      if (!query) {
+        statusMessage.textContent = "Enter a query before submitting.";
+        statusMessage.className = "status error";
+        return;
+      }
+
+      submitButton.disabled = true;
+      statusMessage.textContent = "Sending request...";
+      statusMessage.className = "status";
+      resultOutput.textContent = "Loading...";
+
+      try {
+        const response = await fetch("/api/query", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ query })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          statusMessage.textContent = "Request failed.";
+          statusMessage.className = "status error";
+        } else {
+          statusMessage.textContent = "Request completed successfully.";
+          statusMessage.className = "status success";
+        }
+
+        resultOutput.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        statusMessage.textContent = "Network error while calling the gateway.";
+        statusMessage.className = "status error";
+        resultOutput.textContent = JSON.stringify(
+          {
+            error: error instanceof Error ? error.message : "Unknown error"
+          },
+          null,
+          2
+        );
+      } finally {
+        submitButton.disabled = false;
+      }
+    }
+
+    submitButton.addEventListener("click", submitQuery);
+
+    queryInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submitQuery();
+      }
+    });
+  </script>
+</body>
+</html>
+
