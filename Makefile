@@ -1,20 +1,33 @@
-.PHONY: up down logs restart-python build health test etl etl-season eval lint
+.PHONY: up down logs restart-python build health test etl setup-data verify help
 
-# Start all services
+help:
+	@echo "genbi-ipl — Available targets:"
+	@echo ""
+	@echo "  make up           Start both services (gateway + intelligence)"
+	@echo "  make down         Stop both services"
+	@echo "  make logs         Tail logs from both services"
+	@echo "  make health       Check health of both services"
+	@echo "  make setup-data   Download Cricsheet data and run ETL (first-time setup)"
+	@echo "  make test         Run the ETL test suite"
+	@echo "  make verify       Run post-ETL verification queries"
+	@echo "  make etl          Re-run the ETL pipeline"
+	@echo "  make build        Rebuild containers"
+	@echo ""
+
 up:
 	docker compose up --build -d
-	@echo "Gateway: http://localhost:8080"
+	@echo ""
+	@echo "Gateway:      http://localhost:8080"
 	@echo "Intelligence: http://localhost:8000"
+	@echo ""
+	@echo "First time? Run 'make setup-data' to load the cricket database."
 
-# Stop all services
 down:
 	docker compose down
 
-# Tail logs from all services
 logs:
 	docker compose logs -f
 
-# Restart only the Python service (faster iteration)
 restart-python:
 	docker compose up --build -d intelligence
 
@@ -22,26 +35,26 @@ build:
 	docker compose build
 
 health:
-	curl http://localhost:8000/health
-	curl http://localhost:8080/health
+	@echo "Gateway health:"
+	@curl -s http://localhost:8080/health && echo ""
+	@echo "Intelligence health:"
+	@curl -s http://localhost:8000/health && echo ""
 
-# Run tests
 test:
-	docker compose exec intelligence pytest tests/ -v
+	docker compose exec intelligence pytest etl/tests/ -v
 
-# Run ETL pipeline (downloads data, loads DuckDB, generates corpus, embeds)
+setup-data:
+	@echo "Downloading Cricsheet data..."
+	docker compose exec intelligence python scripts/download_data.py
+	@echo ""
+	@echo "Running ETL pipeline..."
+	docker compose exec intelligence python -m etl.run_etl
+	@echo ""
+	@echo "Verifying..."
+	docker compose exec intelligence python scripts/verify_etl.py
+
 etl:
-	python etl/run_etl.py
+	docker compose exec intelligence python -m etl.run_etl
 
-# Reload a specific season
-etl-season:
-	python etl/run_etl.py --season $(SEASON)
-
-# Run evaluation suite
-eval:
-	python evaluation/run_eval.py
-
-# Lint
-lint:
-	cd intelligence && python -m ruff check .
-	cd gateway && go vet ./...
+verify:
+	docker compose exec intelligence python scripts/verify_etl.py

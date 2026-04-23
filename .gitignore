@@ -19,11 +19,14 @@ env/
 gateway/gateway
 gateway/gateway.exe
 
-# Data (large files, generated)
-data/raw/
-data/db/
-data/chromadb/
+# Data (large files, generated — keep directory structure)
+data/raw/*
+data/db/*
+data/chromadb/*
 !data/.gitkeep
+!data/raw/.gitkeep
+!data/db/.gitkeep
+!data/chromadb/.gitkeep
 
 # IDE
 .vscode/settings.json

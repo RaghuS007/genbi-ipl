@@ -1,0 +1,24 @@
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/.gitignore b/.gitignore[m
+[1mindex 1db2303..5dde3ee 100644[m
+[1m--- a/.gitignore[m
+[1m+++ b/.gitignore[m
+[36m@@ -19,11 +19,14 @@[m [menv/[m
+ gateway/gateway[m
+ gateway/gateway.exe[m
+ [m
+[31m-# Data (large files, generated)[m
+[31m-data/raw/[m
+[31m-data/db/[m
+[31m-data/chromadb/[m
+[32m+[m[32m# Data (large files, generated — keep directory structure)[m
+[32m+[m[32mdata/raw/*[m
+[32m+[m[32mdata/db/*[m
+[32m+[m[32mdata/chromadb/*[m
+ !data/.gitkeep[m
+[32m+[m[32m!data/raw/.gitkeep[m
+[32m+[m[32m!data/db/.gitkeep[m
+[32m+[m[32m!data/chromadb/.gitkeep[m
+ [m
+ # IDE[m
+ .vscode/settings.json[m
