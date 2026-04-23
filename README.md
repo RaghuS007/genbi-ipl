@@ -108,7 +108,7 @@ fact_ball          ← one row per delivery (303,846 rows)
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/YOUR_USERNAME/genbi-ipl.git
+git clone https://github.com/RaghuDMT/genbi-ipl.git
 cd genbi-ipl
 
 # 2. Create your environment file
