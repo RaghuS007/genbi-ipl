@@ -1,8 +1,3 @@
-# GenBI — Natural Language Analytics for IPL Data
-
-> Work in progress. See docs/ for architecture and design documentation.
-markdown# genbi-ipl
-
 **AI-powered generative BI for IPL and WPL cricket analytics.**
 
 Ask questions in plain English. Get SQL, results, and a natural language explanation — grounded in ball-by-ball data from every IPL and WPL match since 2008.
@@ -108,7 +103,7 @@ fact_ball          ← one row per delivery (303,846 rows)
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/RaghuDMT/genbi-ipl.git
+git clone https://github.com/RaghuS007/genbi-ipl
 cd genbi-ipl
 
 # 2. Create your environment file
