@@ -6,7 +6,26 @@ markdown# Pre-Match Analysis Guide
 A repeatable workflow for using `genbi-ipl` to analyse upcoming IPL or WPL fixtures. Designed to be followed in 10–15 minutes before a match starts.
 
 ---
+## Tool Reference
 
+The repo ships three reusable analysis scripts under `scripts/`:
+
+| Script | Purpose | Key flags |
+|---|---|---|
+| `team_squad.py` | Players who appeared for a team in a given season | `--team`, `--season`, `--format` |
+| `head_to_head.py` | Full H2H between two teams: record, venues, top performers | `--team-a`, `--team-b`, `--since-year`, `--venue`, `--recent` |
+| `matchups.py` | Batter-vs-bowler grid for any roster combination | `--batters`, `--bowlers`, `--since-year`, `--phase` |
+
+All three accept short team aliases (`RCB`, `GT`, `CSK`, etc.) and support both text and JSON output.
+
+For database health verification:
+
+| Script | Purpose |
+|---|---|
+| `verify_etl.py` | Post-ETL sanity queries (top scorers, season summary) |
+| `acceptance_test.py` | 11 checks against known cricket facts |
+| `diagnose_h2h.py` | Diagnose team canonicalization issues |
+| `diagnose_seasons.py` | List raw Cricsheet season values |
 ## Prerequisites
 
 - Repo cloned and Phase 1 ETL complete (you have `data/db/genbi.duckdb`)
@@ -63,7 +82,76 @@ Write the names down in **Cricsheet format** — initials + surname. Examples:
 | Rashid Khan | `Rashid Khan` |
 
 Don't stress about getting these perfect — `scripts/matchups.py` does fuzzy matching against `dim_player.name_variants`, so `Kohli` will resolve to `V Kohli`. But matching the canonical form gives cleaner output. The `team_squad.py` output from Step 1 shows the exact spellings.
+### Step 2.5 — Head-to-Head Context
 
+Before drilling into individual player matchups, get the team-level history. The `head_to_head.py` script summarises every encounter between two teams and surfaces patterns invisible in current-season data alone.
+
+**Basic usage:**
+
+```bash
+docker compose exec intelligence python scripts/head_to_head.py --team-a RCB --team-b DC
+```
+
+This prints six sections:
+
+1. **Overall record** — total matches, wins per team, no-result/tie count
+2. **Per-season breakdown** — year-by-year W/L with match counts
+3. **By venue** — split with at least 2 matches per venue
+4. **Last N encounters** — most recent matches with date, winner, margin
+5. **Top run-scorers in this fixture** — players who score most against this opposition
+6. **Top wicket-takers in this fixture** — players who take most wickets
+
+**Useful flags:**
+
+| Flag | Purpose | Example |
+|---|---|---|
+| `--since-year` | Only matches from this year onward | `--since-year 2020` for recent form only |
+| `--venue` | Restrict to one venue (exact name from `dim_venue`) | `--venue "M Chinnaswamy Stadium"` |
+| `--recent` | How many recent matches to show (default 5) | `--recent 10` |
+| `--format` | `text` (default) or `json` | `--format json` |
+
+**Reading the per-season breakdown:**
+
+Look for **trend reversals**. A team that dominated 2010–2015 but has lost 4 of the last 5 meetings is in a different rivalry now than the overall record suggests. Always weight recent seasons more.
+
+**Reading the venue split:**
+
+| Pattern | What it suggests |
+|---|---|
+| Team A wins 4/5 at their home venue | Strong home dominance — toss matters less if Team A bats first |
+| Both teams roughly even at both venues | Toss-decided fixture — listen for what captain chose |
+| One team wins consistently away | Travel/conditions advantage — note the away team's strength |
+
+**Caveat — venue name fragmentation:**
+
+Cricsheet records venue strings inconsistently across seasons. You may see:
+- `M Chinnaswamy Stadium`
+- `M Chinnaswamy Stadium, Bengaluru`
+- `M.Chinnaswamy Stadium`
+
+These are the same physical venue. The current data treats them as separate `dim_venue` rows. When reading the by-venue split, mentally combine variants of the same ground. (A future ETL improvement will canonicalize these the way teams already are.)
+
+**Reading the top performers section:**
+
+This is the most underrated part of the H2H output. Some players raise their game against specific opposition. If you see a name with disproportionate runs or wickets in this fixture compared to their overall career profile, **note them for the pre-match narrative** — they're the player most likely to have a big game tonight.
+
+**Worked example (RCB vs DC, since 2008):**
+
+- Overall: 34 matches, RCB 19, DC 13, 2 NR/tie — RCB has historically owned this fixture
+- Recent: DC won 3 of the last 5 — momentum has shifted
+- Top scorer in fixture: V Kohli, 1,030 runs in 27 matches — averages 38 against DC specifically, well above his career baseline
+- Top wicket-taker: YS Chahal, 15 wickets in 15 matches — owns this matchup, but he's no longer with RCB
+- Modern threat from DC: K Rabada, 13 wickets in 6 matches — over 2 wickets per match, the most likely RCB-killer
+
+Combining all of this: the headline takeaway isn't "RCB has the historical edge"; it's "Kohli has owned this rivalry, but DC's current bowling unit has the recent psychological advantage."
+
+**When to skip H2H:**
+
+- **First-ever meeting** (e.g., GT vs LSG in 2022's first round) — no data, skip
+- **Less than 5 historical meetings** — sample too small to draw conclusions; rely on player matchups instead
+- **Both teams have radically different personnel** from past meetings — historical team-level patterns may not transfer
+
+In those cases, lean harder on Step 3 (player matchups), which is personnel-specific.
 ---
 
 ## Step 3 — Run the Matchup Analysis
@@ -216,37 +304,44 @@ Create the `analysis/` directory once and add it to `.gitignore` if you don't wa
 
 ---
 
-## Cheat Sheet — One-Shot Workflow
 
-If you're in a hurry, the entire flow is four commands:
 
-```powershell
+## Cheat Sheet — Full Workflow
+
+```bash
 # 1. Refresh data (skip if recent)
 docker compose exec intelligence python scripts/download_data.py
 docker compose exec intelligence python -m etl.run_etl
 
 # 2. Squads
 docker compose exec intelligence python scripts/team_squad.py --team RCB --season 2026
-docker compose exec intelligence python scripts/team_squad.py --team GT  --season 2026
+docker compose exec intelligence python scripts/team_squad.py --team DC  --season 2026
 
-# 3. Matchups (one per direction)
+# 3. Head-to-head context
+docker compose exec intelligence python scripts/head_to_head.py --team-a RCB --team-b DC
+
+# 4. Recent form (last 5 seasons)
+docker compose exec intelligence python scripts/head_to_head.py --team-a RCB --team-b DC --since-year 2020
+
+# 5. Player matchups (one per innings direction)
 docker compose exec intelligence python scripts/matchups.py `
     --batters "<Team A XI batters>" `
     --bowlers "<Team B XI bowlers>" `
-    --since-year 2022
+    --since-year 2020
 
 docker compose exec intelligence python scripts/matchups.py `
     --batters "<Team B XI batters>" `
     --bowlers "<Team A XI bowlers>" `
-    --since-year 2022
+    --since-year 2020
 
-# 4. (Optional) death-over deep dive
+# 6. Death-over deep dive (optional)
 docker compose exec intelligence python scripts/matchups.py `
     --batters "..." --bowlers "..." `
-    --since-year 2022 --phase death
-```
+    --since-year 2020 --phase death
 
----
+# 7. Sanity-check the database state (occasional)
+docker compose exec intelligence python scripts/acceptance_test.py
+```
 
 ## Where This Goes Next
 
